@@ -82,7 +82,7 @@ withTimeTravel' keybindings def = { init, update, view }
       subscribe Keydown keydownSub
       state <- def.init # lmap Message
       pure
-        { history: History.empty state
+        { history: History.init state
         , visible: true
         , keybindings
         }

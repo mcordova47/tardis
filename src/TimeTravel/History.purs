@@ -1,9 +1,9 @@
 module TimeTravel.History
   ( History
-  , empty
   , future
   , hasFuture
   , hasPast
+  , init
   , past
   , present
   , redo
@@ -25,8 +25,8 @@ newtype History s = History
 
 -- Constructors
 
-empty :: forall s. s -> History s
-empty s = History
+init :: forall s. s -> History s
+init s = History
   { past: Nil
   , present: s
   , future: Nil
