@@ -14,7 +14,7 @@ import Data.Maybe (Maybe(..))
 import Debug as Debug
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
-import Elmish (ComponentDef', ReactElement, bimap, forks, lmap, subscribe, (<|))
+import Elmish (ComponentDef', ReactElement, forks, lmap, subscribe, (<|))
 import Elmish.Component (ComponentName(..), wrapWithLocalState)
 import Elmish.HTML as H
 import Elmish.Subscription (Subscription(..))
@@ -44,8 +44,7 @@ data Message msg
   | Keydown KeyboardEvent
 
 type State s =
-  { state :: s
-  , history :: History s
+  { history :: History s
   , visible :: Boolean
   , keybindings :: Keybindings
   }
@@ -89,16 +88,15 @@ withTimeTravel' keybindings def =
       subscribe Keydown keydownSub
       state <- init # lmap Message
       pure
-        { state
-        , history: History.empty state
+        { history: History.empty state
         , visible: true
         , keybindings
         }
 
     update' state = case _ of
       Message msg -> do
-        state' <- update state.state msg # bimap Message state { state = _ }
-        pure state' { history = History.track state.history state'.state }
+        next <- update (History.present state.history) msg # lmap Message
+        pure state { history = History.track state.history next }
       Keydown e | state.keybindings.toggle e ->
         pure state { visible = not state.visible }
       Keydown _ ->
@@ -108,9 +106,9 @@ withTimeTravel' keybindings def =
       Redo ->
         pure $ timeTravel History.redo state
 
-    view' { state, history, visible } dispatch =
+    view' { history, visible } dispatch =
       H.fragment
-      [ view state $ dispatch <<< Message
+      [ view (History.present history) $ dispatch <<< Message
       , if visible then
           portal
             { id: "tardis-time-machine"
@@ -168,12 +166,8 @@ withTimeTravel' keybindings def =
          liftEffect $ W.window <#> toEventTarget >>= removeEventListener keydown listener false
 
 timeTravel :: forall s. (History s -> History s) -> State s -> State s
-timeTravel upd state = state
-  { state = History.present history
-  , history = history
-  }
-  where
-    history = upd state.history
+timeTravel upd state =
+  state { history = upd state.history }
 
 -- Utils
 

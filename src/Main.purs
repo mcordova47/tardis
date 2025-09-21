@@ -12,7 +12,7 @@ import TimeTravel (withTimeTravel)
 
 main :: DebugWarning => Effect Unit
 main = defaultMain
-  { def: withTimeTravel { init, update, view }
+  { def: { init, update, view }
   , elementId: "app"
   }
 
