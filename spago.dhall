@@ -15,9 +15,11 @@ to generate this file without the comments in this block.
   [ "arrays"
   , "bifunctors"
   , "console"
+  , "debug"
   , "effect"
   , "elmish"
   , "elmish-html"
+  , "lists"
   , "maybe"
   , "prelude"
   ]
