@@ -2,6 +2,7 @@ module Main where
 
 import Prelude
 
+import Debug (class DebugWarning)
 import Effect (Effect)
 import Elmish (Dispatch, ReactElement, Transition, (<|))
 import Elmish.Boot (defaultMain)
@@ -9,13 +10,9 @@ import Elmish.HTML.Events as E
 import Elmish.HTML.Styled as H
 import TimeTravel (withTimeTravel)
 
-main :: Effect Unit
+main :: DebugWarning => Effect Unit
 main = defaultMain
-  { def: withTimeTravel
-      { init
-      , update
-      , view
-      }
+  { def: withTimeTravel { init, update, view }
   , elementId: "app"
   }
 

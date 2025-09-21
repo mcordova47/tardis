@@ -19,9 +19,15 @@ to generate this file without the comments in this block.
   , "effect"
   , "elmish"
   , "elmish-html"
+  , "foldable-traversable"
+  , "functions"
   , "lists"
   , "maybe"
   , "prelude"
+  , "web-dom"
+  , "web-events"
+  , "web-html"
+  , "web-uievents"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]
