@@ -76,39 +76,33 @@ withTimeTravel' ::
   => Keybindings
   -> ComponentDef' m msg state
   -> ComponentDef' m (Message msg) (State state)
-withTimeTravel' keybindings def =
-  { init: init'
-  , update: update'
-  , view: view'
-  }
+withTimeTravel' keybindings def = { init, update, view }
   where
-    { init, update, view } = def
-
-    init' = do
+    init = do
       subscribe Keydown keydownSub
-      state <- init # lmap Message
+      state <- def.init # lmap Message
       pure
         { history: History.empty state
         , visible: true
         , keybindings
         }
 
-    update' state = case _ of
+    update state = case _ of
       Message msg -> do
-        next <- update (History.present state.history) msg # lmap Message
+        next <- def.update (History.present state.history) msg # lmap Message
         pure state { history = History.track state.history next }
       Keydown e | state.keybindings.toggle e ->
         pure state { visible = not state.visible }
       Keydown _ ->
         pure state
       Undo ->
-        pure $ timeTravel History.undo state
+        pure state { history = History.undo state.history }
       Redo ->
-        pure $ timeTravel History.redo state
+        pure state { history = History.redo state.history }
 
-    view' { history, visible } dispatch =
+    view { history, visible } dispatch =
       H.fragment
-      [ view (History.present history) $ dispatch <<< Message
+      [ def.view (History.present history) $ dispatch <<< Message
       , if visible then
           portal
             { id: "tardis-time-machine"
@@ -164,10 +158,6 @@ withTimeTravel' keybindings def =
 
       pure $
          liftEffect $ W.window <#> toEventTarget >>= removeEventListener keydown listener false
-
-timeTravel :: forall s. (History s -> History s) -> State s -> State s
-timeTravel upd state =
-  state { history = upd state.history }
 
 -- Utils
 
