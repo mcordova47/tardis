@@ -32,7 +32,7 @@ update _ = case _ of
 
 view :: State -> Dispatch Message -> ReactElement
 view state dispatch =
-  H.div ""
+  H.div "container"
   [ H.h1 "" "Time Travel"
   , H.h2 "" "Input"
   , H.input_ "form-control"

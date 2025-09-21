@@ -9,7 +9,7 @@ module TimeTravel
 import Prelude
 
 import Data.Foldable (for_)
-import Data.Function.Uncurried (Fn2, runFn2)
+import Data.Function.Uncurried (Fn1, Fn2, runFn1, runFn2)
 import Data.Maybe (Maybe(..))
 import Debug as Debug
 import Effect (Effect)
@@ -17,6 +17,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Elmish (ComponentDef', ReactElement, forks, lmap, subscribe, (<|))
 import Elmish.Component (ComponentName(..), wrapWithLocalState)
 import Elmish.HTML as H
+import Elmish.React (class ReactChildren)
 import Elmish.Subscription (Subscription(..))
 import TimeTravel.History (History)
 import TimeTravel.History as History
@@ -40,12 +41,15 @@ data Message msg
   -- Controls
   | Undo
   | Redo
+  -- UI
+  | ToggleExpanded
   -- Keydown
   | Keydown KeyboardEvent
 
-type State s =
-  { history :: History s
+type State msg s =
+  { history :: History msg s
   , visible :: Boolean
+  , expanded :: Boolean
   , keybindings :: Keybindings
   }
 
@@ -59,7 +63,7 @@ withTimeTravel ::
   => MonadEffect m
   => Functor m
   => ComponentDef' m msg state
-  -> ComponentDef' m (Message msg) (State state)
+  -> ComponentDef' m (Message msg) (State msg state)
 withTimeTravel =
   withTimeTravel'
     { toggle: \e ->
@@ -75,7 +79,7 @@ withTimeTravel' ::
   => Functor m
   => Keybindings
   -> ComponentDef' m msg state
-  -> ComponentDef' m (Message msg) (State state)
+  -> ComponentDef' m (Message msg) (State msg state)
 withTimeTravel' keybindings def = { init, update, view }
   where
     init = do
@@ -84,25 +88,28 @@ withTimeTravel' keybindings def = { init, update, view }
       pure
         { history: History.init state
         , visible: true
+        , expanded: false
         , keybindings
         }
 
     update state = case _ of
       Message msg -> do
-        next <- def.update (History.present state.history) msg # lmap Message
-        pure state { history = History.track state.history next }
-      Keydown e | state.keybindings.toggle e ->
-        pure state { visible = not state.visible }
-      Keydown _ ->
-        pure state
+        next <- def.update (History.presentState state.history) msg # lmap Message
+        pure state { history = History.track state.history msg next }
       Undo ->
         pure state { history = History.undo state.history }
       Redo ->
         pure state { history = History.redo state.history }
+      ToggleExpanded ->
+        pure state { expanded = not state.expanded }
+      Keydown e | state.keybindings.toggle e ->
+        pure state { visible = not state.visible }
+      Keydown _ ->
+        pure state
 
-    view { history, visible } dispatch =
+    view { history, visible, expanded } dispatch =
       H.fragment
-      [ def.view (History.present history) $ dispatch <<< Message
+      [ def.view (History.presentState history) $ dispatch <<< Message
       , if visible then
           portal
             { id: "tardis-time-machine"
@@ -118,36 +125,64 @@ withTimeTravel' keybindings def = { init, update, view }
                       }
                   , tabIndex: -1
                   }
-                  [ H.button
-                      { onClick: dispatch <| Undo
-                      , disabled: not History.hasPast history
-                      , style: btnStyle
-                      }
-                      "↩️"
-                  , H.button
-                      { onClick: dispatch <| Redo
-                      , disabled: not History.hasFuture history
-                      , style: btnStyle
-                      }
-                      "↪️"
+                  [ H.div
+                    { style: H.css { display: "flex", alignItems: "center" }
+                    }
+                    [ button
+                        { onClick: dispatch <| Undo
+                        , disabled: not History.hasPast history
+                        }
+                        "↩️"
+                    , H.em { style: H.css { color: "gray" } } $
+                        formatMessage false $
+                          History.presentMessage history
+                    , button
+                        { onClick: dispatch <| Redo
+                        , disabled: not History.hasFuture history
+                        }
+                        "↪️"
+                    , button
+                        { onClick: dispatch <| ToggleExpanded
+                        , disabled: false
+                        }
+                        if expanded then "▼" else "▶"
+                    ]
+                  , if expanded then
+                      H.div {}
+                      [ H.h6 {} "Last Message"
+                      , H.pre {} $
+                          formatMessage true $ History.presentMessage history
+                      , H.h6 {} "Current State"
+                      , H.pre {} $
+                          formatState $ History.presentState history
+                      ]
+                    else
+                      H.empty
                   ]
             }
         else
           H.empty
       ]
       where
-        btnStyle = H.css
-          { display: "inline-block"
-          , textAlign: "center"
-          , textDecoration: "none"
-          , verticalAlign: "middle"
-          , cursor: "pointer"
-          , backgroundColor: "transparent"
-          , border: "none"
-          , padding: "0.375rem 0.75rem"
-          , fontSize: "1rem"
-          , borderRadius: "0.25rem"
-          }
+        button :: forall c. ReactChildren c => _ -> c -> _
+        button { onClick, disabled } label =
+          H.button
+            { onClick
+            , disabled
+            , style: H.css
+                { display: "inline-block"
+                , textAlign: "center"
+                , textDecoration: "none"
+                , verticalAlign: "middle"
+                , cursor: if disabled then "default" else "pointer"
+                , backgroundColor: "transparent"
+                , border: "none"
+                , padding: "0.375rem 0.75rem"
+                , fontSize: "1rem"
+                , borderRadius: "0.25rem"
+                }
+            }
+            label
 
     keydownSub = Subscription \dispatch -> liftEffect do
       listener <- eventListener \e -> case KeyboardEvent.fromEvent e of
@@ -198,3 +233,13 @@ createPortal :: ReactElement -> Element -> ReactElement
 createPortal = runFn2 createPortal_
 
 foreign import createPortal_ :: Fn2 ReactElement Element ReactElement
+
+formatMessage :: forall a. Boolean -> a -> String
+formatMessage = runFn2 formatMessage_
+
+foreign import formatMessage_ :: forall a. Fn2 Boolean a String
+
+formatState :: forall a. a -> String
+formatState = runFn1 formatState_
+
+foreign import formatState_ :: forall a. Fn1 a String
