@@ -12,7 +12,8 @@ to generate this file without the comments in this block.
 -}
 { name = "my-project"
 , dependencies =
-  [ "console"
+  [ "arrays"
+  , "console"
   , "debug"
   , "effect"
   , "elmish"
@@ -21,7 +22,9 @@ to generate this file without the comments in this block.
   , "functions"
   , "lists"
   , "maybe"
+  , "ordered-collections"
   , "prelude"
+  , "record"
   , "tuples"
   , "web-dom"
   , "web-events"

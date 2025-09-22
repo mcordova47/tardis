@@ -1,6 +1,8 @@
 module TimeTravel
-  ( Keybindings
+  ( Expanded
+  , Keybindings
   , Message
+  , Section
   , withTimeTravel
   , withTimeTravel'
   )
@@ -9,8 +11,10 @@ module TimeTravel
 import Prelude
 
 import Data.Foldable (for_)
-import Data.Function.Uncurried (Fn1, Fn2, runFn1, runFn2)
+import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Maybe (Maybe(..))
+import Data.Set (Set)
+import Data.Set as Set
 import Debug as Debug
 import Effect (Effect)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -19,7 +23,8 @@ import Elmish.Component (ComponentName(..), wrapWithLocalState)
 import Elmish.HTML as H
 import Elmish.React (class ReactChildren)
 import Elmish.Subscription (Subscription(..))
-import TimeTravel.History (History)
+import Record as Record
+import TimeTravel.History (History, formatMessage, formatState)
 import TimeTravel.History as History
 import Web.DOM (Element)
 import Web.DOM.Document (createElement) as DOM
@@ -41,17 +46,30 @@ data Message msg
   -- Controls
   | Undo
   | Redo
+  | Jump Int
   -- UI
   | ToggleExpanded
+  | ToggleSection Section
   -- Keydown
   | Keydown KeyboardEvent
 
 type State msg s =
   { history :: History msg s
   , visible :: Boolean
-  , expanded :: Boolean
+  , expanded :: Expanded
   , keybindings :: Keybindings
   }
+
+data Expanded
+  = Expanded (Set Section)
+  | Collapsed
+
+data Section
+  = Past
+  | Present
+  | Future
+derive instance Eq Section
+derive instance Ord Section
 
 type Keybindings =
   { toggle :: KeyboardEvent -> Boolean
@@ -88,7 +106,7 @@ withTimeTravel' keybindings def = { init, update, view }
       pure
         { history: History.init state
         , visible: true
-        , expanded: false
+        , expanded: Collapsed
         , keybindings
         }
 
@@ -100,12 +118,22 @@ withTimeTravel' keybindings def = { init, update, view }
         pure state { history = History.undo state.history }
       Redo ->
         pure state { history = History.redo state.history }
+      Jump index ->
+        pure state { history = History.jump index state.history }
       ToggleExpanded ->
-        pure state { expanded = not state.expanded }
+        pure state { expanded = toggle state.expanded }
+      ToggleSection section | Expanded sections <- state.expanded ->
+        pure state { expanded = Expanded $ Set.toggle section sections }
+      ToggleSection _ ->
+        pure state
       Keydown e | state.keybindings.toggle e ->
         pure state { visible = not state.visible }
       Keydown _ ->
         pure state
+      where
+        toggle = case _ of
+          Expanded _ -> Collapsed
+          Collapsed -> Expanded $ Set.singleton Present
 
     view { history, visible, expanded } dispatch =
       H.fragment
@@ -119,14 +147,15 @@ withTimeTravel' keybindings def = { init, update, view }
                       { position: "fixed"
                       , bottom: "1rem"
                       , right: "1rem"
-                      , padding: "0.75rem"
                       , border: "1px solid lightgray"
                       , borderRadius: "0.5rem"
+                      , backgroundColor: "white"
+                      , width: "300px"
                       }
                   , tabIndex: -1
                   }
                   [ H.div
-                    { style: H.css { display: "flex", alignItems: "center" }
+                    { style: H.css { display: "flex", alignItems: "center", padding: "0.75rem" }
                     }
                     [ button
                         { onClick: dispatch <| Undo
@@ -141,48 +170,120 @@ withTimeTravel' keybindings def = { init, update, view }
                         , disabled: not History.hasFuture history
                         }
                         "↪️"
-                    , button
+                    , button'
                         { onClick: dispatch <| ToggleExpanded
                         , disabled: false
+                        , style: H.css $ Record.merge (buttonStyle false) { marginLeft: "auto" }
                         }
-                        if expanded then "▼" else "▶"
+                        case expanded of
+                          Expanded _ -> "▼"
+                          Collapsed -> "▶"
                     ]
-                  , if expanded then
-                      H.div {}
-                      [ H.h6 {} "Last Message"
-                      , H.pre {} $
-                          formatMessage true $ History.presentMessage history
-                      , H.h6 {} "Current State"
-                      , H.pre {} $
-                          formatState $ History.presentState history
-                      ]
-                    else
-                      H.empty
+                  , case expanded of
+                      Expanded sections ->
+                        H.div
+                        { style: H.css
+                            { padding: "0.75rem 0"
+                            , borderTop: "1px solid lightgray"
+                            , maxHeight: "500px"
+                            , overflow: "auto"
+                            }
+                        }
+                        [ section
+                            { section: Past, expanded: sections, last: false } $
+                            historyEvent <$> History.past history
+                        , section
+                            { section: Present, expanded: sections, last: false }
+                            [ H.h6 {} "Last Message"
+                            , H.pre {} $
+                                formatMessage true $ History.presentMessage history
+                            , H.h6 {} "Current State"
+                            , H.pre {} $
+                                formatState $ History.presentState history
+                            ]
+                        , section
+                            { section: Future, expanded: sections, last: true } $
+                            historyEvent <$> History.future history
+                        ]
+                      Collapsed ->
+                        H.empty
                   ]
             }
         else
           H.empty
       ]
       where
+        historyEvent { index, message } =
+          H.pre
+            { onClick: dispatch <| Jump index
+            , style: H.css
+                { cursor: "pointer"
+                , overflow: "hidden"
+                , wordWrap: "nowrap"
+                , textOverflow: "ellipsis"
+                }
+            } $
+            formatMessage true message
+
+        section :: forall c. ReactChildren c => _ -> c -> _
+        section props content =
+          H.div
+          { style: H.css
+              { borderBottom: if props.last then "none" else "1px solid lightgray"
+              , padding: "0 0.75rem"
+              }
+          }
+          [ H.h6
+            { onClick: dispatch <| ToggleSection props.section
+            , style: H.css
+                { display: "flex"
+                , alignItems: "center"
+                , justifyContent: "space-between"
+                , marginBottom: "0"
+                , cursor: "pointer"
+                , padding: "0.75rem 0"
+                }
+            }
+            [ H.div {} case props.section of
+                Past -> "Past"
+                Present -> "Present"
+                Future -> "Future"
+            , H.div {}
+                if Set.member props.section props.expanded then "▼" else "▶"
+            ]
+          , if Set.member props.section props.expanded then
+              H.div
+                { style: H.css { padding: "0.75rem 0" } }
+                content
+            else
+              H.empty
+          ]
+
         button :: forall c. ReactChildren c => _ -> c -> _
-        button { onClick, disabled } label =
+        button { onClick, disabled } =
+          button' { onClick, disabled, style: H.css $ buttonStyle disabled }
+
+        button' :: forall c. ReactChildren c => _ -> c -> _
+        button' { onClick, disabled, style } label =
           H.button
             { onClick
             , disabled
-            , style: H.css
-                { display: "inline-block"
-                , textAlign: "center"
-                , textDecoration: "none"
-                , verticalAlign: "middle"
-                , cursor: if disabled then "default" else "pointer"
-                , backgroundColor: "transparent"
-                , border: "none"
-                , padding: "0.375rem 0.75rem"
-                , fontSize: "1rem"
-                , borderRadius: "0.25rem"
-                }
+            , style
             }
             label
+
+        buttonStyle disabled =
+          { display: "inline-block"
+          , textAlign: "center"
+          , textDecoration: "none"
+          , verticalAlign: "middle"
+          , cursor: if disabled then "default" else "pointer"
+          , backgroundColor: "transparent"
+          , border: "none"
+          , padding: "0.375rem 0.75rem"
+          , fontSize: "1rem"
+          , borderRadius: "0.25rem"
+          }
 
     keydownSub = Subscription \dispatch -> liftEffect do
       listener <- eventListener \e -> case KeyboardEvent.fromEvent e of
@@ -233,13 +334,3 @@ createPortal :: ReactElement -> Element -> ReactElement
 createPortal = runFn2 createPortal_
 
 foreign import createPortal_ :: Fn2 ReactElement Element ReactElement
-
-formatMessage :: forall a. Boolean -> a -> String
-formatMessage = runFn2 formatMessage_
-
-foreign import formatMessage_ :: forall a. Fn2 Boolean a String
-
-formatState :: forall a. a -> String
-formatState = runFn1 formatState_
-
-foreign import formatState_ :: forall a. Fn1 a String
