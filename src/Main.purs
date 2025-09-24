@@ -7,11 +7,11 @@ import Elmish (Dispatch, ReactElement, Transition, (<|))
 import Elmish.Boot (defaultMain)
 import Elmish.HTML.Events as E
 import Elmish.HTML.Styled as H
-import TimeTravel (withTimeTravel)
+import Elmish.TimeMachine (withTimeMachine)
 
 main :: Effect Unit
 main = defaultMain
-  { def: withTimeTravel { init, update, view }
+  { def: withTimeMachine { init, update, view }
   , elementId: "app"
   }
 
