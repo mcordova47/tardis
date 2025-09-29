@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW 2018 (64-Bit) -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="126.775mm" height="253.153mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 314.29 627.59"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .fil1 {fill:#003399}
+    .fil0 {fill:#FFCC00}
+   ]]>
+  </style>
+ </defs>
+ <g id="tardis">
+ 
+  <rect class="fil0" x="29.12" y="159.51" width="259.03" height="116.66"/>
+  <path class="fil1" d="M259.15 363.2l0 -74.68 5.8 0 0 80.78 -82.88 0 0 -6.1 77.08 0zm40.31 264.4l0 -491.82 -284.63 0 0 491.82 284.63 0zm-180.46 -261l-58.86 0 0 -76.88 58.86 0 0 76.88zm-49.36 -101.02l-27.01 0 0 -41.29 27.01 0 0 41.29zm0 -47.14l-27.01 0 0 -41.29 27.01 0 0 41.29zm33.17 47.14l-27.01 0 0 -41.29 27.01 0 0 41.29zm0 -47.14l-27.01 0 0 -41.29 27.01 0 0 41.29zm6.16 47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm27.01 -47.14l-27.01 0 0 -41.29 27.01 0 0 41.29zm42.32 0l0 -41.29 27.01 0 0 41.29 -27.01 0zm0 47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm33.17 -47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm0 47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm33.17 -47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm0 47.14l0 -41.29 27.01 0 0 41.29 -27.01 0zm-118.22 201.38l0 -74.68 5.8 0 0 80.78 -82.88 0 0 -6.1 77.08 0zm132.73 0l0 -74.68 5.8 0 0 80.78 -82.88 0 0 -6.1 77.08 0zm0 103.75l0 -74.68 5.8 0 0 80.78 -82.88 0 0 -6.1 77.08 0zm-132.73 0l0 -74.68 5.8 0 0 80.78 -82.88 0 0 -6.1 77.08 0z">
+  </path>
+  <polygon class="fil1" points="-0,131.01 314.29,131.01 314.29,95.74 297.33,95.74 297.33,88.59 16.96,88.59 16.96,95.74 -0,95.74 "/>
+  <polygon class="fil1" points="26,83.1 288.28,83.1 288.28,70.1 177.56,47.21 175.36,47.21 175.36,40.14 167.84,40.14 167.84,13.81 172.68,13.81 157.14,0 141.6,13.81 146.44,13.81 146.44,40.14 138.92,40.14 138.92,47.21 136.72,47.21 26,70.1 "/>
+  <rect class="fil0" x="150.72" y="15.16" width="13.18" height="23.89">
+  
+  </rect>
+  <animate attributeName="opacity"
+             values="1;0.2;1" dur="2s"
+             begin="mouseover"
+			 end="mouseout"
+			 repeatCount="indefinite"
+			 />
+ </g>
+ 
+</svg>
