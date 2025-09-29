@@ -2,9 +2,11 @@ module Main where
 
 import Prelude
 
+import Data.Array ((!!))
 import Data.DateTime (DateTime)
 import Data.DateTime as DT
-import Data.Maybe (Maybe(..))
+import Data.Int as Int
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Class (liftEffect)
@@ -19,7 +21,7 @@ import Space as S
 import Web.Event.EventTarget (addEventListener, eventListener, removeEventListener) as E
 import Web.HTML (window) as W
 import Web.HTML.Window (cancelAnimationFrame, requestAnimationFrame)
-import Web.HTML.Window (toEventTarget) as W
+import Web.HTML.Window (innerHeight, innerWidth, toEventTarget) as W
 import Web.UIEvent.KeyboardEvent (KeyboardEvent)
 import Web.UIEvent.KeyboardEvent as KE
 import Web.UIEvent.KeyboardEvent as KeyboardEvent
@@ -32,7 +34,7 @@ main = defaultMain
   }
 
 data Message
-  = Load DateTime
+  = Load DateTime S.Coordinates
   | Tick DateTime
   | Keydown KeyboardEvent
   | Keyup KeyboardEvent
@@ -46,14 +48,20 @@ data State
       , direction :: S.Direction
       , spin :: Maybe S.Spin
       , timestamp :: DateTime
+      , pageSize :: S.Coordinates
+      , image :: { row :: Int, col :: Int }
       }
 
 init :: Transition Message State
 init = do
   subscribe Keydown $ keyboardEventSub E.keydown
   subscribe Keyup $ keyboardEventSub E.keyup
-  fork $
-    Load <$> liftEffect nowDateTime
+  fork $ liftEffect do
+    window <- W.window
+    x <- W.innerWidth window <#> Int.toNumber
+    y <- W.innerHeight window <#> Int.toNumber
+    timestamp <- nowDateTime
+    pure $ Load timestamp { x, y }
   pure Loading
   where
     keyboardEventSub event = Subscription \dispatch -> liftEffect do
@@ -68,7 +76,7 @@ init = do
 
 update :: State -> Message -> Transition Message State
 update Loading = case _ of
-  Load timestamp -> do
+  Load timestamp pageSize -> do
     fork $
       Tick <$> liftEffect nowDateTime
     pure $ Loaded
@@ -78,17 +86,31 @@ update Loading = case _ of
       , direction: S.up
       , spin: Nothing
       , timestamp
+      , pageSize
+      , image: { row: 0, col: 0 }
       }
   _ ->
     pure Loading
 update (Loaded state) = map Loaded <<< case _ of
-  Load _ ->
+  Load _ _ ->
     pure state
   Tick timestamp -> do
     let
       elapsed = DT.diff timestamp state.timestamp
-      position /\ velocity = S.positionAndVelocity state elapsed
       direction = S.direction state elapsed
+      position /\ velocity = S.positionAndVelocity state elapsed
+      pos
+        | position.x > state.pageSize.x / 2.0 =
+            position { x = position.x - state.pageSize.x } /\ state.image { col = state.image.col + 1 }
+        | position.x < -state.pageSize.x / 2.0 =
+            position { x = position.x + state.pageSize.x } /\ state.image { col = state.image.col - 1 }
+        | position.y > state.pageSize.y / 2.0 =
+            position { y = position.y - state.pageSize.y } /\ state.image { row = state.image.row + 1 }
+        | position.y < -state.pageSize.y / 2.0 =
+            position { y = position.y + state.pageSize.y } /\ state.image { row = state.image.row - 1 }
+        | otherwise =
+            position /\ state.image
+      position' /\ image = pos
     forks \{ dispatch, onStop } -> liftEffect do
       id <-
         W.window >>= requestAnimationFrame do
@@ -96,7 +118,7 @@ update (Loaded state) = map Loaded <<< case _ of
           dispatch $ Tick nextTimeStamp
       onStop $
         liftEffect $ W.window >>= cancelAnimationFrame id
-    pure state { position = position, velocity = velocity, direction = direction, timestamp = timestamp }
+    pure state { position = position', velocity = velocity, direction = direction, timestamp = timestamp, image = image }
   Keydown e | KE.code e == "ArrowUp" ->
     pure state { acceleration = S.Accelerating }
   Keydown e | KE.code e == "ArrowDown" ->
@@ -129,7 +151,10 @@ view (Loaded state) _ =
         , bottom: 0
         , left: 0
         , right: 0
-        , backgroundColor: "#1a1a1a"
+        , backgroundColor: "#101010ff"
+        , backgroundImage: "url(/assets/" <> image <> ")"
+        , backgroundSize: "cover"
+        , backgroundRepeat: "no-repeat"
         }
     } $
     H.img
@@ -142,3 +167,13 @@ view (Loaded state) _ =
           , transform: "translate(-50%, -50%) " <> S.rotateCss state.direction
           }
       }
+  where
+    image =
+      images !! (mod state.image.row 3) # maybe defaultImage \row ->
+        row !! (mod state.image.col 3) # fromMaybe defaultImage
+    images =
+      [ ["space1.jpeg", "space2.webp", "space3.webp"]
+      , ["space4.webp", "space5.webp", "space6.webp"]
+      , ["space7.webp", "space8.webp", "space9.webp"]
+      ]
+    defaultImage = "space1.jpeg"

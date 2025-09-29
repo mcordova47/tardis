@@ -84,7 +84,7 @@ acceleration = case _ of
   Decelerating -> -(pxPerSecSq * pow 10.0 (-6.0))
   Stationary -> 0.0
   where
-    pxPerSecSq = 50.0
+    pxPerSecSq = 100.0
 
 positionAndVelocity ::
   forall r
